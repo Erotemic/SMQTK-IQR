@@ -12,19 +12,29 @@ import kwarray
 import kwimage
 import kwplot
 import ubelt as ub
+import xdev
 
 # Define the file paths to be same as bash script that generates data
-DATA_FPATH = "../../demodata/vidshapes_rgb_data/data.kwcoco.json"
-CHIPPED_IMAGES_FPATH = "../../demodata/chipped"
+DATA_FPATH = ub.Path("../../demodata/vidshapes_rgb_data/data.kwcoco.json")
+DEMODATA_OUTPUT_PATH= ub.Path("../../demodata").absolute().resolve()
+CHIPPED_IMAGES_DPATH = DEMODATA_OUTPUT_PATH / "chipped"
+OUTPUT_FPATH=DEMODATA_OUTPUT_PATH / "manifest.json"
+
+CHIPPED_IMAGES_DPATH.ensuredir()
 
 # Define the dimensions of the window slider for image chips
 window_size=256
+frames=10
+num_videos=1
 
-# Load data kwcoco Dataset for chipping images
-dset = kwcoco.CocoDataset.from_data(DATA_FPATH)
+# Create kwcoco Dataset
+dset = kwcoco.CocoDataset.demo("vidshapes",
+    num_frames=frames, num_videos=num_videos, background="amazon")
+
+rows=[]
 
 #TO DO:  determine how to read off the number of images in a kwcoco dataset
-for ii in range(5):
+for ii in range(dset.n_images):
 
     # Select image for slicing/chipping
     image_id = dset.images()[ii]
@@ -67,8 +77,8 @@ for ii in range(5):
 
     descriptor_dims = len(categories) * 2
 
-    # For loop using ub.ProgIter - can't see what the max index is??
     # index hooks in slider parameters and defines the slicing window
+
     for index in ub.ProgIter(slider, desc='sliding a window', verbose=3):
 
         # Slice out the relevant part of the image using the slider function
@@ -97,7 +107,7 @@ for ii in range(5):
         overlapping_cat_names = dset.categories(overlapping_cat_ids).lookup('name')
         overlapping_cat_idxs = np.array([categories.node_to_idx[name] for name in overlapping_cat_names], dtype=int)
 
-        print("Overlapping category indices: ", overlapping_cat_idxs, type(overlapping_cat_idxs), '\n')
+        # print("Overlapping category indices: ", overlapping_cat_idxs, type(overlapping_cat_idxs), '\n')
 
         # Make a random descriptor, but add an indicator based on the visible
         # annotation categories.
@@ -108,22 +118,23 @@ for ii in range(5):
         # Assigns descriptor values to 100 where the category index is present
         part_descriptor[overlapping_cat_idxs] = 100
 
-        print("Part descriptor: ", part_descriptor)
+        # print("Part descriptor: ", part_descriptor)
 
         # converts from (x1,y1), (x2, y2) dimensions to xywh
         x, y, w, h = box.to_xywh().data
 
-        print("output of box.to_xywh: ", box, "(", x, y, w, h, ")", '\n')
-
+        # print("output of box.to_xywh: ", box, "(", x, y, w, h, ")", '\n')
 
         suffix = f'img_{image_id:05d}-xywh={x:04d}_{y:04d}_{w:03d}_{h:03d}.png'
 
-        print("suffix is: ", suffix, '\n')
+        # print("suffix is: ", suffix, '\n')
 
-        slice_path = "../../demodata/chipped_images/" + suffix
-        print(f'slice_path={slice_path}\n')
+        slice_path = CHIPPED_IMAGES_DPATH / suffix
+        # print(f'slice_path={slice_path}\n')
 
-        slice_desc_path = str(slice_path)[:-4] + "_desc.json"
+        slice_desc_path = slice_path.augment(stemsuffix="_desc", ext=".json")
+
+        # xdev.embed()
 
         kwimage.imwrite(slice_path, part_image)
 
@@ -133,3 +144,8 @@ for ii in range(5):
         # Save the list to the JSON file
         with open(slice_desc_path, 'w') as json_file:
             json.dump(part_descriptor_list, json_file)
+
+        row={"image_path":os.fspath(slice_path), "desc_path":os.fspath(slice_desc_path)}
+        rows.append(row)
+tables={"Image_Descriptor_Pairs":rows}
+OUTPUT_FPATH.write_text(json.dumps(tables, indent="    "))
