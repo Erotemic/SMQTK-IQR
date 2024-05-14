@@ -13,7 +13,8 @@ from typing import Callable, Dict, Any, Optional
 import flask
 from flask_cors import cross_origin
 from werkzeug.exceptions import NotFound
-from werkzeug.wsgi import peek_path_info, pop_path_info
+from werkzeug.wsgi import get_path_info, pop_path_info
+
 
 from smqtk_core.dict import merge_dict
 
@@ -256,8 +257,10 @@ class IqrSearchDispatcher (SmqtkWebApp):
         with self.instances_lock:
             return self.instances.get(prefix, None)
 
+    """ Disabled this function because pop_path_info has been removed
+    from werkzeug and there is no clear migration plan.
     def __call__(self, environ: Dict, start_response: Callable) -> Callable:
-        path_prefix = peek_path_info(environ)
+        path_prefix = get_path_info(environ)
         LOG.debug("Base application __call__ path prefix: '%s'", path_prefix)
 
         if path_prefix and path_prefix not in self.PREFIX_BLACKLIST:
@@ -273,6 +276,7 @@ class IqrSearchDispatcher (SmqtkWebApp):
             app = self.wsgi_app  # type: ignore
 
         return app(environ, start_response)  # type: ignore
+    """
 
     def run(
         self, host: Optional[str] = None, port: Optional[int] = None,
