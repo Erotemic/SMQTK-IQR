@@ -1,3 +1,5 @@
+# third version that uses the json manifest file to build data set and
+# descriptor set
 # Uses scriptconfig rather than argparse
 # Modifying iqr_app_model_generation for geowatch
 
@@ -63,40 +65,24 @@ class MyConfig(scfg.DataConfig):
 # Instantiate the configuration class
 args = MyConfig.cli(special_options=False)
 
-
-def read_manifest(manifest_path):
-    with open(manifest_path, 'r') as f:
-        manifest = json.load(f)
-    return manifest
-
 def main() -> None:
-    print("Main function is called")
-    # Parse command-line arguments
-    # args = config
-
-    # print("\n What does a parser look like?", "\n")
 
     # Extract the paths of the image files
     image_paths = args.input_files
 
-
     # Extract the value of the descriptors argument from the cli input
-    descriptors_path = args.descriptors
+    descriptor_paths = args.descriptors
+    manifest_path = descriptor_paths[0]
 
-    # Print the contents of the descriptors JSON file
-    if descriptors_path:
-        print("\n Descriptors path:", descriptors_path[0])
-    else:
-        print("\n Descriptors argument not provided.")
+
 
     ## setting up config values:
-    # args = cli_parser().parse_args()
-
     ui_config_filepath, iqr_config_filepath = args.config
     llevel = logging.DEBUG if args.verbose else logging.INFO
     tab = args.tab
 
     # These are the input files, images that will be processed
+    #TO DO: remove this line later
     input_files_globs = args.input_files
 
     # Not using `cli.utility_main_helper`` due to deviating from single-
@@ -121,11 +107,9 @@ def main() -> None:
                   .format(tab, list(ui_config["iqr_tabs"])))
         exit(1)
 
-    print("\n ui_config_filepath:", ui_config_filepath)
-    print("\n iqr_config_filepath:", iqr_config_filepath)
-    print("\n what is tab? ", tab)
-    print("\n What is ui_config look like?", ui_config)
-
+#    print("\n ui_config_filepath:", ui_config_filepath)
+#    print("\n iqr_config_filepath:", iqr_config_filepath)
+#    print("\n what is tab? ", tab)
 
 
     #----------------------------------------------------------------
@@ -144,26 +128,25 @@ def main() -> None:
     # descriptor vectors below.
     descriptor_elem_factory_config = iqr_plugins_config['descriptor_factory']
 
-    print("\n Descriptor Element Config:", descriptor_elem_factory_config)
+#    print("\n Descriptor Element Config:", descriptor_elem_factory_config)
 
     # Configure DescriptorGenerator algorithm implementation, parameters and
     # persistent model component locations (if implementation has any).
     descriptor_generator_config = iqr_plugins_config['descriptor_generator']
 
-    print("\n Descriptor Generator Config:", descriptor_generator_config)
+#    print("\n Descriptor Generator Config:", descriptor_generator_config)
 
     # Configure the DescriptorSet implementation and parameters
     descriptor_set_config = iqr_plugins_config['descriptor_set']
 
-    print("\n Descriptor Set Config:", descriptor_set_config)
+#    print("\n Descriptor Set Config:", descriptor_set_config)
 
     # Configure NearestNeighborIndex algorithm implementation, parameters and
     # persistent model component locations (if implementation has any).
     nn_index_config = iqr_plugins_config['neighbor_index']
 
-
     #--------------------------------------------------------------
-    # Remove any existing cache in config data_set file path
+    # Remove any existing cache files in data sets
     cache_fp = ui_config['iqr_tabs']['Ten Butterflies']['data_set']\
         ['smqtk_dataprovider.impls.data_set.memory.DataMemorySet']\
         ['cache_element']['smqtk_dataprovider.impls.data_element.file.DataFileElement']\
@@ -175,8 +158,18 @@ def main() -> None:
     else:
         print(f"File {cache_fp} does not exist")
 
+    # Remove any existing cache files in descriptor set
+    desc_cache = iqr_config['iqr_service']['plugins']['descriptor_set']\
+    ['smqtk_descriptors.impls.descriptor_set.memory.MemoryDescriptorSet']\
+    ['cache_element']['smqtk_dataprovider.impls.data_element.file.DataFileElement']\
+    ['filepath']
 
-
+    # Deleting the file if it exists
+    if desc_cache and os.path.exists(desc_cache):
+        os.remove(desc_cache)
+        print(f"File '{desc_cache}' deleted successfully")
+    else:
+        print(f"File '{desc_cache}' does not exist")
     #---------------------------------------------------------------
     # Initialize data/algorithms
     #
@@ -192,21 +185,15 @@ def main() -> None:
     descriptor_elem_factory = DescriptorElementFactory \
         .from_config(descriptor_elem_factory_config)
 
-    data_set_v2: DataSet = \
-        from_config_dict(data_set_config, DataSet.get_impls())
-    descriptor_elem_factory = DescriptorElementFactory \
-        .from_config(descriptor_elem_factory_config)
-
-    print("\n Descriptor_elem_factory: ", descriptor_elem_factory)
-    factory_atts = vars(descriptor_elem_factory)
-
-    print("\n Descriptor_elem_factory attributes: ", factory_atts)
+#    print("\n Descriptor_elem_factory: ", descriptor_elem_factory)
+#    factory_atts = vars(descriptor_elem_factory)
+#    print("\n Descriptor_elem_factory attributes: ", factory_atts)
 
     # Generate a descriptor set from the config file
     descriptor_set: DescriptorSet = \
         from_config_dict(descriptor_set_config, DescriptorSet.get_impls())
 
-    print("\n Descriptor Set: ", descriptor_set)
+#    print("\n Descriptor Set: ", descriptor_set)
 
 
 
@@ -229,61 +216,39 @@ def main() -> None:
 #    print("Instance of DataSet", DataSet)
 
     # Load JSON data from the file
-    with open(descriptors_path[0], "r") as json_file:
+    with open(manifest_path, "r") as json_file:
         data = json.load(json_file)
 
     # Access the list of image-descriptor pairs
     image_descriptor_pairs = data['Image_Descriptor_Pairs']
 
-    print("\n Input Files Globs:", type(input_files_globs))
-    print("\n Input Files Globs:", input_files_globs)
 
-    # Iterate over each pair
+    # Iterate over each pair in manifest json file
     for pair in image_descriptor_pairs:
+
         # Extract image path and descriptor path
         image_path = pair['image_path']
+        image_path = osp.expanduser(image_path)
+
         desc_path = pair['desc_path']
+        desc_path = osp.expanduser(desc_path)
+#        print("\n Descriptor Path", desc_path)
         image_path = osp.expanduser(image_path)
         if osp.isfile(image_path):
             data_fe = DataFileElement(image_path, readonly=True)
-            data_set_v2.add_data(data_fe)
+#            print("\n uuid of data file element:", data_fe.uuid())
+            data_set.add_data(data_fe)
+#            print("\n is datashet growing?",data_set.__len__())
+#            vector = np.load(desc_path)
+            descriptor = descriptor_elem_factory.new_descriptor(data_fe.uuid())
+#            descriptor.set_vector(vector)
+            descriptor_set.add_descriptor(descriptor)
 
-
-
-
-
-
-    #----------------------------------------------------------------
-    # Build models
-    # log that files are being added to dataset
-
-
-
-    log.info("Adding files to dataset '{}'".format(data_set))
-
-    # Add the files to the dataset
-    for g in input_files_globs:
-        g = osp.expanduser(g)
-        if osp.isfile(g):
-            data_file_element = DataFileElement(g, readonly=True)
-
-            # Directly access attributes
-            # print("\n Filepath:", data_file_element._filepath)
-            # print("Readonly:", data_file_element._readonly)
-            # print("Explicit Mimetype:", data_file_element._explicit_mimetype, "\n")
-
-            data_set.add_data(data_file_element)
-        else:
-            log.debug("Expanding glob: %s" % g)
-            for fp in glob.iglob(g):
-                data_set.add_data(DataFileElement(fp, readonly=True))
-
-    print("\n what's the data_set look like?",data_set)
     print("\n what's the length of the dataset?",data_set.__len__())
+    print("\n Descriptor Set after adding new descriptor:", descriptor_set)
 
-    attributes = vars(data_set)
-    # print("\n what are the attributes of data_set?", attributes)
 
+'''
     uuid_set = data_set.uuids()
     print("\n List of uuids in the dataset:", uuid_set)
     print("\n And the type is:", type(uuid_set))
@@ -308,7 +273,7 @@ def main() -> None:
 
     print(check_descriptor.vector())
 
-
+'''
 
 if __name__ == "__main__":
     main()

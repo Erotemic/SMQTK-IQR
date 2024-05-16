@@ -8,10 +8,10 @@ docker run -v \
   -it 1eed980552ae
 
 
-# code to run container directly from web-service
+# code to run container directly from web-service. Runs demo but gets error.  Possibly needs older version of GPU
 docker run --gpus all -p 5000:5000 gitlab.kitware.com:4567/smqtk-public/smqtk-iqr-docker/iqr_playground:latest-cuda9.2-cudnn7-runtime-ubuntu18.04
 
-# command to run the demo with the mounted drive
+# command to run the demo with the mounted drive in docker container
 iqr_app_model_generation \
     -c config.IqrSearchApp.json config.IqrRestService.json \
     -t "LEEDS Butterflies" /leedsbutterfly_dataset_v1.1/leedsbutterfly/images/*.jpg
@@ -88,6 +88,37 @@ python v2_iqr_demo.py \
  -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
  -t "Ten Butterflies" /home/local/KHQ/paul.beasly/data/ten_butterflies/*.png
 
+  # Use file system for descriptor elements.
+python v2_iqr_demo.py \
+ -c ../../data_docker_image/configs/runApp.IqrSearchDispatcher.json \
+ ../../data_docker_image/configs/run.IqrService_file.json \
+ -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
+ -t "Ten Butterflies" /home/local/KHQ/paul.beasly/data/ten_butterflies/*.png
+
+# command to run the demo with the mounted drive
+iqr_app_model_generation \
+    -c runApp.IqrSearchApp.json runApp.IqrRestService.json \
+    -t "LEEDS Butterflies" /leedsbutterfly_dataset_v1.1/leedsbutterfly/images/*.jpg
+
+
+  # Use config files with file saving instead of psql
+python v2_iqr_demo.py \
+ -c runApp.IqrSearchApp.json runApp.IqrRestService_file.json \
+ -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
+ -t "Ten Butterflies" /home/local/KHQ/paul.beasly/data/ten_butterflies/*.png
+
+
+  # Try with v1
+python v1_iqr_demo.py \
+ -c runApp.IqrSearchApp.json runApp.IqrRestService_file.json \
+ -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
+ -t "Ten Butterflies" /home/local/KHQ/paul.beasly/data/ten_butterflies/*.png
+
+
+  # Using standard demo code
+iqr_app_model_generation \
+ -c runApp.IqrSearchApp.json runApp.IqrRestService_file.json \
+ -t "Ten Butterflies" /home/local/KHQ/paul.beasly/data/ten_butterflies/*.png
 
 # This is how the classifier users descriptors
     # Load state into an empty IqrSession instance.

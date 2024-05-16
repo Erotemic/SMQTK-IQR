@@ -13,7 +13,7 @@ from typing import Callable, Dict, Any, Optional
 import flask
 from flask_cors import cross_origin
 from werkzeug.exceptions import NotFound
-from werkzeug.wsgi import get_path_info, pop_path_info
+from werkzeug.wsgi import get_path_info#, pop_path_info
 
 
 from smqtk_core.dict import merge_dict
