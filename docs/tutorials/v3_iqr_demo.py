@@ -4,12 +4,14 @@
 # Modifying iqr_app_model_generation for geowatch
 
 # Standard libraries
-import argparse
 import glob
 import logging
 import os.path as osp
 import os
 import sklearn
+import json
+import os
+import numpy as np
 
 
 # SMQTK specific packages
@@ -19,23 +21,14 @@ from smqtk_iqr.utils import cli
 from smqtk_dataprovider import DataSet
 from smqtk_dataprovider.impls.data_element.file import DataFileElement
 from smqtk_descriptors.descriptor_element_factory import DescriptorElementFactory
-from smqtk_descriptors import DescriptorGenerator
 from smqtk_descriptors import DescriptorSet
-
 from smqtk_indexing import NearestNeighborsIndex
 from smqtk_core.configuration import (
     from_config_dict,
 )
 
-
-#debuggins/printing packages
-import json
-import os
-from PIL import Image
-import numpy as np
-
-
-# Define the configuration class
+#---------------------------------------------------------------
+# Define the configuration class using the scriptconfig package
 class MyConfig(scfg.DataConfig):
     verbose = scfg.Value(False, isflag=True, short_alias=['v'], help='Output additional debug logging.')
     config = scfg.Value(None, required=True, short_alias=['c'], help=ub.paragraph(
@@ -46,10 +39,10 @@ class MyConfig(scfg.DataConfig):
             should be the configuration file for the ``IqrService`` web-
             application.
             '''), nargs=2)
-    descriptors = scfg.Value(None, short_alias=['d'], help=ub.paragraph(
+    metadata = scfg.Value(None, short_alias=['m'], help=ub.paragraph(
             '''
-            Path to the JSON descriptor metadata files.TO DO...describe
-            file format...
+            Path to the JSON descriptor metadata files. Contains pairs of
+            image and descriptor file paths.
             '''), nargs=1)
     tab = scfg.Value(None, required=True, short_alias=['t'], help=ub.paragraph(
             '''
@@ -57,33 +50,92 @@ class MyConfig(scfg.DataConfig):
             configuration to use. This informs what dataset to add the
             input data files to.
             '''))
-    input_files = scfg.Value(None, position=1, required=True, help=ub.paragraph(
-            '''
-            Shell glob to files to add to the configured data set.
-            '''), nargs='+')
 
-# Instantiate the configuration class
-args = MyConfig.cli(special_options=False)
+#---------------------------------------------------------------
+def remove_cache_files(ui_config, iqr_config) -> None:
+    # Remove any existing cache files in data set config file path
+    cache_fp = ui_config['iqr_tabs']['Geowatch Chipped']['data_set']\
+        ['smqtk_dataprovider.impls.data_set.memory.DataMemorySet']\
+        ['cache_element']['smqtk_dataprovider.impls.data_element.file.DataFileElement']\
+        ['filepath']
+    # Deleting the file
+    if os.path.exists(cache_fp):
+        os.remove(cache_fp)
+        print(f"\n File {cache_fp} deleted successfully\n")
+    else:
+        print(f"File {cache_fp} does not exist - will be generated")
 
+    # Remove any existing cache files in descriptor set config file path
+    desc_cache = iqr_config['iqr_service']['plugins']['descriptor_set']\
+    ['smqtk_descriptors.impls.descriptor_set.memory.MemoryDescriptorSet']\
+    ['cache_element']['smqtk_dataprovider.impls.data_element.file.DataFileElement']\
+    ['filepath']
+
+    # Deleting the file if it exists
+    if desc_cache and os.path.exists(desc_cache):
+        os.remove(desc_cache)
+        print(f"File '{desc_cache}' deleted successfully")
+    else:
+        print(f"File '{desc_cache}' does not exist - will be generated")
+
+#---------------------------------------------------------------
+# Load metadata from the JSON file and create data and descriptor sets
+def generate_sets(manifest_path, data_set, descriptor_set, descriptor_elem_factory):
+    # Load JSON data from the file
+    with open(manifest_path, "r") as json_file:
+        data = json.load(json_file)
+
+    # Access the list of image-descriptor pairs
+    image_descriptor_pairs = data['Image_Descriptor_Pairs']
+
+    # Initialize an empty list to store descriptors for NNindex algorithm
+    descr_list = []
+
+    # Iterate over each pair to build the data set and descriptor set
+    for pair in image_descriptor_pairs:
+
+        # Extract image path and descriptor path
+        image_path = pair['image_path']
+        image_path = osp.expanduser(image_path)
+
+        desc_path = pair['desc_path']
+        desc_path = osp.expanduser(desc_path)
+
+        if osp.isfile(image_path) and osp.isfile(desc_path):
+            data_fe = DataFileElement(image_path, readonly=True)
+#            current_uuid = data_fe.uuid()
+            data_set.add_data(data_fe)
+
+            # Load the descriptor vector - it's a json file
+            with open(desc_path, "rb") as f:
+                json_vec = json.load(f)
+
+            vector = np.array(json_vec)
+
+            descriptor = descriptor_elem_factory.new_descriptor(data_fe.uuid())
+            descriptor.set_vector(vector)
+            descr_list.append(descriptor)
+
+            # Add the descriptor to the descriptor set
+            descriptor_set.add_descriptor(descriptor)
+        else:
+            print("\n Image or descriptor file paths not found")
+
+    return data_set, descriptor_set, descr_list
+
+
+#---------------------------------------------------------------
 def main() -> None:
 
-    # Extract the paths of the image files
-    image_paths = args.input_files
+    # Instantiate the configuration class and gather the arguments
+    args = MyConfig.cli(special_options=False)
 
-    # Extract the value of the descriptors argument from the cli input
-    descriptor_paths = args.descriptors
-    manifest_path = descriptor_paths[0]
-
-
-
+    #--------------------------------------------------------------
     ## setting up config values:
     ui_config_filepath, iqr_config_filepath = args.config
     llevel = logging.DEBUG if args.verbose else logging.INFO
+    manifest_path = (args.metadata)[0]
     tab = args.tab
-
-    # These are the input files, images that will be processed
-    #TO DO: remove this line later
-    input_files_globs = args.input_files
 
     # Not using `cli.utility_main_helper`` due to deviating from single-
     # config-with-default usage.
@@ -111,7 +163,6 @@ def main() -> None:
 #    print("\n iqr_config_filepath:", iqr_config_filepath)
 #    print("\n what is tab? ", tab)
 
-
     #----------------------------------------------------------------
     # Gather Configurations
     #
@@ -130,13 +181,8 @@ def main() -> None:
 
 #    print("\n Descriptor Element Config:", descriptor_elem_factory_config)
 
-    # Configure DescriptorGenerator algorithm implementation, parameters and
-    # persistent model component locations (if implementation has any).
-    descriptor_generator_config = iqr_plugins_config['descriptor_generator']
-
-#    print("\n Descriptor Generator Config:", descriptor_generator_config)
-
-    # Configure the DescriptorSet implementation and parameters
+    # Configure the DescriptorSet instance into which the descriptor elements
+    # are added.
     descriptor_set_config = iqr_plugins_config['descriptor_set']
 
 #    print("\n Descriptor Set Config:", descriptor_set_config)
@@ -146,30 +192,9 @@ def main() -> None:
     nn_index_config = iqr_plugins_config['neighbor_index']
 
     #--------------------------------------------------------------
-    # Remove any existing cache files in data sets
-    cache_fp = ui_config['iqr_tabs']['Ten Butterflies']['data_set']\
-        ['smqtk_dataprovider.impls.data_set.memory.DataMemorySet']\
-        ['cache_element']['smqtk_dataprovider.impls.data_element.file.DataFileElement']\
-        ['filepath']
-    # Deleting the file
-    if os.path.exists(cache_fp):
-        os.remove(cache_fp)
-        print(f"\n File {cache_fp} deleted successfully\n")
-    else:
-        print(f"File {cache_fp} does not exist")
+    # Remove any existing cache files in data set config file path
+    remove_cache_files(ui_config, iqr_config)
 
-    # Remove any existing cache files in descriptor set
-    desc_cache = iqr_config['iqr_service']['plugins']['descriptor_set']\
-    ['smqtk_descriptors.impls.descriptor_set.memory.MemoryDescriptorSet']\
-    ['cache_element']['smqtk_dataprovider.impls.data_element.file.DataFileElement']\
-    ['filepath']
-
-    # Deleting the file if it exists
-    if desc_cache and os.path.exists(desc_cache):
-        os.remove(desc_cache)
-        print(f"File '{desc_cache}' deleted successfully")
-    else:
-        print(f"File '{desc_cache}' does not exist")
     #---------------------------------------------------------------
     # Initialize data/algorithms
     #
@@ -179,7 +204,7 @@ def main() -> None:
 
     log.info("Instantiating plugins")
 
-    # Creates instance of the class DataSet from the configuration
+    # Create instance of the class DataSet from the configuration
     data_set: DataSet = \
         from_config_dict(data_set_config, DataSet.get_impls())
     descriptor_elem_factory = DescriptorElementFactory \
@@ -189,91 +214,41 @@ def main() -> None:
 #    factory_atts = vars(descriptor_elem_factory)
 #    print("\n Descriptor_elem_factory attributes: ", factory_atts)
 
-    # Generate a descriptor set from the config file
+    # Create instance of the class DescriptorSet from the configuration
     descriptor_set: DescriptorSet = \
         from_config_dict(descriptor_set_config, DescriptorSet.get_impls())
 
 #    print("\n Descriptor Set: ", descriptor_set)
 
-
-
-#  This is where it needs caffe dependency to generate descriptors, need to
-#  short-circuit this process
-
-#    descriptor_generator: DescriptorGenerator = \
-#        from_config_dict(descriptor_generator_config,
-#                         DescriptorGenerator.get_impls())
-
+    # Create instance of the class NearestNeighborsIndex from the configuration
     nn_index: NearestNeighborsIndex = \
        from_config_dict(nn_index_config,
                          NearestNeighborsIndex.get_impls())
 
-
-#    print("what does a parser look like?", cli_parser())
-#    print("parser datatype", type(cli_parser()))
 #    print("what does nnindex_config look like?", nn_index_config)
 
-#    print("Instance of DataSet", DataSet)
+    # Generate data set and descriptor set from the JSON manifest file
+    data_set, descriptor_set, descr_list =  generate_sets(manifest_path, data_set, descriptor_set, descriptor_elem_factory)
 
-    # Load JSON data from the file
-    with open(manifest_path, "r") as json_file:
-        data = json.load(json_file)
+#    print("\n View data set", data_set)
+#    print("\nDescriptor list: ", descr_list)
 
-    # Access the list of image-descriptor pairs
-    image_descriptor_pairs = data['Image_Descriptor_Pairs']
+    print("\nData set with {} elements created successfully".format(data_set.__len__()))
 
-
-    # Iterate over each pair in manifest json file
-    for pair in image_descriptor_pairs:
-
-        # Extract image path and descriptor path
-        image_path = pair['image_path']
-        image_path = osp.expanduser(image_path)
-
-        desc_path = pair['desc_path']
-        desc_path = osp.expanduser(desc_path)
-#        print("\n Descriptor Path", desc_path)
-        image_path = osp.expanduser(image_path)
-        if osp.isfile(image_path):
-            data_fe = DataFileElement(image_path, readonly=True)
-#            print("\n uuid of data file element:", data_fe.uuid())
-            data_set.add_data(data_fe)
-#            print("\n is datashet growing?",data_set.__len__())
-#            vector = np.load(desc_path)
-            descriptor = descriptor_elem_factory.new_descriptor(data_fe.uuid())
-#            descriptor.set_vector(vector)
-            descriptor_set.add_descriptor(descriptor)
-
-    print("\n what's the length of the dataset?",data_set.__len__())
-    print("\n Descriptor Set after adding new descriptor:", descriptor_set)
+    print("\nDescriptor set with {} elements created successfully".format(descriptor_set.__len__()))
+    print("\nDescriptor list with {} elements created successfully".format(descr_list.__len__()))
+#    print("\n Descriptor Set after adding new descriptor:", descriptor_set)
+#    dataset_attributes = vars(data_set)
+#    print("\n what are the attributes of data_set?", dataset_attributes)
+#    desc_set_attributes = vars(descriptor_set)
+#    print("\n what are the attributes of descriptor_set?", desc_set_attributes)
+#    vec_list = descriptor_set.get_many_vectors(['b62bff3628864ed164c7727e67d13f9ca8d20aba', '9f8d18ebdb9952a3d0aaaa995b922a17f2a62459'])
+#    print("\n Vector list:", vec_list)
 
 
-'''
-    uuid_set = data_set.uuids()
-    print("\n List of uuids in the dataset:", uuid_set)
-    print("\n And the type is:", type(uuid_set))
-
-    new_vector = np.array([1, 2, 3, 4, 5])
-
-    new_descriptor = descriptor_elem_factory.new_descriptor('38b6b4cbdf0bfaf3613de51b67fe58748b9465c9')
-    new_descriptor.set_vector(new_vector)
-    # print("\n Has vector? ", new_descriptor.has_vector())
-
-    print("\n New descriptor:", new_descriptor)
-
-    atts_new_descriptor = vars(new_descriptor)
-    print("\n New descriptor attributes:", atts_new_descriptor)
-
-    # Add the descriptor to the descriptor set
-    descriptor_set.add_descriptor(new_descriptor)
-    print("\n Descriptor Set after adding new descriptor:", descriptor_set)
-
-    check_descriptor = descriptor_set.get_descriptor('38b6b4cbdf0bfaf3613de51b67fe58748b9465c9')
-    print("\n Check descriptor:", check_descriptor)
-
-    print(check_descriptor.vector())
-
-'''
+#    log.info("Building nearest neighbors index {}".format(nn_index))
+#    nn_index.build_index(descriptor_set)
+#    print("\nNearest Neighbors Index", nn_index)
 
 if __name__ == "__main__":
     main()

@@ -20,8 +20,21 @@ python v2_iqr_demo.py \
   -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
   -t "Ten Butterflies" /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/chipped/*.png
 
-  # Next version builds dataset and descriptor set using json_manifests
+# Next version builds dataset and descriptor set using json_manifests
+# Generate image chips from kwcoco images
+python chip_images.py
+
+# Generate the SMQTK-IQR data set and descriptor set
 python v3_iqr_demo.py \
   -c runApp.IqrSearchApp.json runApp.IqrRestService.json \
   -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
-  -t "Ten Butterflies" /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/chipped/*.png
+  -t "Geowatch Chipped" /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/chipped/*.png
+
+# Generate image chips from kwcoco images
+python chip_images.py
+
+  # Generate the SMQTK-IQR data set and descriptor set
+python v3_iqr_demo.py \
+  -c runApp.IqrSearchApp.json runApp.IqrRestService.json \
+  -m ../../demodata/manifest.json \
+  -t "Geowatch Chipped"

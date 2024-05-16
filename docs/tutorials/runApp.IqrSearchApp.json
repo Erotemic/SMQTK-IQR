@@ -13,7 +13,7 @@
         "server": "127.0.0.1:27017"
     },
     "iqr_tabs": {
-        "Ten Butterflies": {
+        "Geowatch Chipped": {
             "working_directory": "workdir",
             "data_set": {
                 "smqtk_dataprovider.impls.data_set.memory.DataMemorySet": {
