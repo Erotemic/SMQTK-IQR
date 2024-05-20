@@ -33,8 +33,14 @@ python v3_iqr_demo.py \
 # Generate image chips from kwcoco images
 python chip_images.py
 
-  # Generate the SMQTK-IQR data set and descriptor set
+# Generate the SMQTK-IQR data set and descriptor set
 python v3_iqr_demo.py \
   -c runApp.IqrSearchApp.json runApp.IqrRestService.json \
+  -m ../../demodata/manifest.json \
+  -t "Geowatch Chipped"
+
+# Generate the SMQTK-IQR data set and descriptor set and faiss nnindex
+python v3_iqr_demo.py -v \
+  -c runApp.IqrSearchApp.json runApp.IqrRestService_faiss.json \
   -m ../../demodata/manifest.json \
   -t "Geowatch Chipped"

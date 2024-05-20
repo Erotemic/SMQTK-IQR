@@ -91,7 +91,7 @@
                             "cache_element": {
                                 "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
                                     "explicit_mimetype": null,
-                                    "filepath": "workdir/butterflies_alexnet_fc7/descriptor_set.pickle",
+                                    "filepath": "workdir/descriptor_set.pickle",
                                     "readonly": false
                                 },
                                 "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"
@@ -106,7 +106,7 @@
                             "cache_element": {
                                 "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
                                     "explicit_mimetype": null,
-                                    "filepath": "workdir/butterflies_alexnet_fc7/hash2uuids.mem_kvstore.pickle",
+                                    "filepath": "workdir/hash2uuids.mem_kvstore.pickle",
                                     "readonly": false
                                 },
                                 "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"
@@ -125,7 +125,7 @@
                             "mean_vec_cache": {
                                 "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
                                     "explicit_mimetype": null,
-                                    "filepath": "workdir/butterflies_alexnet_fc7/itqnn/mean_vec.npy",
+                                    "filepath": "workdir/itqnn/mean_vec.npy",
                                     "readonly": false
                                 },
                                 "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"
@@ -135,7 +135,7 @@
                             "rotation_cache": {
                                 "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
                                     "explicit_mimetype": null,
-                                    "filepath": "workdir/butterflies_alexnet_fc7/itqnn/rotation.npy",
+                                    "filepath": "workdir/itqnn/rotation.npy",
                                     "readonly": false
                                 },
                                 "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"

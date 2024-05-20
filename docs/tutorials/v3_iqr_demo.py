@@ -13,7 +13,6 @@ import json
 import os
 import numpy as np
 
-
 # SMQTK specific packages
 import ubelt as ub
 import scriptconfig as scfg
@@ -23,12 +22,14 @@ from smqtk_dataprovider.impls.data_element.file import DataFileElement
 from smqtk_descriptors.descriptor_element_factory import DescriptorElementFactory
 from smqtk_descriptors import DescriptorSet
 from smqtk_indexing import NearestNeighborsIndex
+from smqtk_indexing import LshFunctor
 from smqtk_core.configuration import (
     from_config_dict,
 )
 
 #---------------------------------------------------------------
 # Define the configuration class using the scriptconfig package
+# to process the cli arguments
 class MyConfig(scfg.DataConfig):
     verbose = scfg.Value(False, isflag=True, short_alias=['v'], help='Output additional debug logging.')
     config = scfg.Value(None, required=True, short_alias=['c'], help=ub.paragraph(
@@ -54,32 +55,32 @@ class MyConfig(scfg.DataConfig):
 #---------------------------------------------------------------
 def remove_cache_files(ui_config, iqr_config) -> None:
     # Remove any existing cache files in data set config file path
-    cache_fp = ui_config['iqr_tabs']['Geowatch Chipped']['data_set']\
+    data_cache = ui_config['iqr_tabs']['Geowatch Chipped']['data_set']\
         ['smqtk_dataprovider.impls.data_set.memory.DataMemorySet']\
         ['cache_element']['smqtk_dataprovider.impls.data_element.file.DataFileElement']\
         ['filepath']
     # Deleting the file
-    if os.path.exists(cache_fp):
-        os.remove(cache_fp)
-        print(f"\n File {cache_fp} deleted successfully\n")
+    if os.path.exists(data_cache):
+        os.remove(data_cache)
+        print(f"\n File {data_cache} deleted successfully\n")
     else:
-        print(f"File {cache_fp} does not exist - will be generated")
+        print(f"File {data_cache} does not exist - will be generated")
 
     # Remove any existing cache files in descriptor set config file path
-    desc_cache = iqr_config['iqr_service']['plugins']['descriptor_set']\
+    descriptor_cache = iqr_config['iqr_service']['plugins']['descriptor_set']\
     ['smqtk_descriptors.impls.descriptor_set.memory.MemoryDescriptorSet']\
     ['cache_element']['smqtk_dataprovider.impls.data_element.file.DataFileElement']\
     ['filepath']
 
     # Deleting the file if it exists
-    if desc_cache and os.path.exists(desc_cache):
-        os.remove(desc_cache)
-        print(f"File '{desc_cache}' deleted successfully")
+    if descriptor_cache and os.path.exists(descriptor_cache):
+        os.remove(descriptor_cache)
+        print(f"File '{descriptor_cache}' deleted successfully")
     else:
-        print(f"File '{desc_cache}' does not exist - will be generated")
+        print(f"File '{descriptor_cache}' does not exist - will be generated")
 
 #---------------------------------------------------------------
-# Load metadata from the JSON file and create data and descriptor sets
+# Load metadata from the JSON file and generate data and descriptor sets
 def generate_sets(manifest_path, data_set, descriptor_set, descriptor_elem_factory):
     # Load JSON data from the file
     with open(manifest_path, "r") as json_file:
@@ -89,6 +90,7 @@ def generate_sets(manifest_path, data_set, descriptor_set, descriptor_elem_facto
     image_descriptor_pairs = data['Image_Descriptor_Pairs']
 
     # Initialize an empty list to store descriptors for NNindex algorithm
+    # Not sure if this is really needed
     descr_list = []
 
     # Iterate over each pair to build the data set and descriptor set
@@ -122,6 +124,17 @@ def generate_sets(manifest_path, data_set, descriptor_set, descriptor_elem_facto
             print("\n Image or descriptor file paths not found")
 
     return data_set, descriptor_set, descr_list
+
+#---------------------------------------------------------------
+# A simple function to get the nth descriptor from the descriptor set
+# Displays the UUID and vector of the descriptor
+def get_nth_descriptor(descriptor_set, n):
+    desc_iter = descriptor_set.descriptors()
+    for i in range(n):
+        desc = next(desc_iter)
+    print(f"\nDescriptor {n} info, uuid: {desc.uuid()}, vector: {desc.vector()}")
+    return desc
+
 
 
 #---------------------------------------------------------------
@@ -222,33 +235,47 @@ def main() -> None:
 
     # Create instance of the class NearestNeighborsIndex from the configuration
     nn_index: NearestNeighborsIndex = \
-       from_config_dict(nn_index_config,
-                         NearestNeighborsIndex.get_impls())
+       from_config_dict(nn_index_config, NearestNeighborsIndex.get_impls())
 
-#    print("what does nnindex_config look like?", nn_index_config)
+#    print("\n What does nnindex_config look like?", nn_index)
 
     # Generate data set and descriptor set from the JSON manifest file
-    data_set, descriptor_set, descr_list =  generate_sets(manifest_path, data_set, descriptor_set, descriptor_elem_factory)
+    data_set, descriptor_set, descr_list =  \
+        generate_sets(manifest_path, data_set, descriptor_set, descriptor_elem_factory)
 
 #    print("\n View data set", data_set)
 #    print("\nDescriptor list: ", descr_list)
 
-    print("\nData set with {} elements created successfully".format(data_set.__len__()))
-
-    print("\nDescriptor set with {} elements created successfully".format(descriptor_set.__len__()))
+    print("\nData set with {} elements created successfully".format(data_set.count()))
+    print("\nDescriptor set with {} elements created successfully".format(descriptor_set.count()))
     print("\nDescriptor list with {} elements created successfully".format(descr_list.__len__()))
 #    print("\n Descriptor Set after adding new descriptor:", descriptor_set)
 #    dataset_attributes = vars(data_set)
 #    print("\n what are the attributes of data_set?", dataset_attributes)
 #    desc_set_attributes = vars(descriptor_set)
 #    print("\n what are the attributes of descriptor_set?", desc_set_attributes)
+
+    desc_test = get_nth_descriptor(descriptor_set, 4)
+
 #    vec_list = descriptor_set.get_many_vectors(['b62bff3628864ed164c7727e67d13f9ca8d20aba', '9f8d18ebdb9952a3d0aaaa995b922a17f2a62459'])
 #    print("\n Vector list:", vec_list)
 
 
-#    log.info("Building nearest neighbors index {}".format(nn_index))
-#    nn_index.build_index(descriptor_set)
-#    print("\nNearest Neighbors Index", nn_index)
+    log.info("Building nearest neighbors index {}".format(nn_index))
+    nn_index.build_index(descriptor_set)
+    print("\nNearest Neighbors Index", nn_index)
+
+#    atts_nnindex = vars(nn_index)
+#    print("\n Nearest Neighbors Index attributes: ", atts_nnindex)
+
+    nn_test = nn_index.nn(desc_test, 3)
+    print("\nNearest Neighbors: ", nn_test)
+
+#    atts_nnindex = vars(nn_index)
+#    print("\n Nearest Neighbors Index attributes: ", atts_nnindex)
+
+
+
 
 if __name__ == "__main__":
     main()

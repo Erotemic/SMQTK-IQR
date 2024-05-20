@@ -1,0 +1,171 @@
+{
+  "flask_app": {
+      "BASIC_AUTH_PASSWORD": "demo",
+      "BASIC_AUTH_USERNAME": "demo",
+      "SECRET_KEY": "MySuperUltraSecret"
+  },
+  "server": {
+      "host": "127.0.0.1",
+      "port": 5001
+  },
+  "iqr_service": {
+      "plugins": {
+          "classification_factory": {
+              "smqtk.representation.classification_element.memory.MemoryClassificationElement": {},
+              "type": "smqtk.representation.classification_element.memory.MemoryClassificationElement"
+          },
+          "classifier_config": {
+            "smqtk_classifier.impls.classify_descriptor_supervised.sklearn_logistic_regression.SkLearnLogisticRegression": {
+            },
+            "type": "smqtk_classifier.impls.classify_descriptor_supervised.sklearn_logistic_regression.SkLearnLogisticRegression"
+        },
+          "descriptor_factory": {
+              "smqtk_descriptors.impls.descriptor_element.memory.DescriptorMemoryElement": {},
+              "type": "smqtk_descriptors.impls.descriptor_element.memory.DescriptorMemoryElement"
+          },
+          "descriptor_generator": {
+              "smqtk_descriptors.impls.descriptor_generator.caffe1.CaffeDescriptorGenerator": {
+                  "batch_size": 10,
+                  "data_layer": "data",
+                  "gpu_device_id": 0,
+                  "image_mean": {
+                      "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
+                          "explicit_mimetype": null,
+                          "filepath": "/home/smqtk/caffe/msra_resnet/ResNet_mean.binaryproto",
+                          "readonly": true
+                      },
+                      "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"
+                  },
+                  "input_scale": null,
+                  "load_truncated_images": true,
+                  "network_is_bgr": true,
+                  "network_model": {
+                      "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
+                          "explicit_mimetype": null,
+                          "filepath": "/home/smqtk/caffe/msra_resnet/ResNet-50-model.caffemodel",
+                          "readonly": true
+                      },
+                      "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"
+                  },
+                  "network_prototxt": {
+                      "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
+                          "explicit_mimetype": null,
+                          "filepath": "/home/smqtk/caffe/msra_resnet/ResNet-50-deploy.prototxt",
+                          "readonly": true
+                      },
+                      "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"
+                  },
+                  "pixel_rescale": null,
+                  "return_layer": "pool5",
+                  "use_gpu": true
+              },
+              "type": "smqtk_descriptors.impls.descriptor_generator.caffe1.CaffeDescriptorGenerator"
+          },
+          "descriptor_set": {
+              "smqtk_descriptors.impls.descriptor_set.memory.MemoryDescriptorSet": {
+                  "cache_element": {
+                      "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
+                          "explicit_mimetype": null,
+                          "filepath": "workdir/descriptor_set.pickle",
+                          "readonly": false
+                      },
+                      "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"
+                  },
+                  "pickle_protocol": -1
+              },
+              "type": "smqtk_descriptors.impls.descriptor_set.memory.MemoryDescriptorSet"
+          },
+          "neighbor_index": {
+            "smqtk_indexing.impls.nn_index.faiss.FaissNearestNeighborsIndex": {
+                "descriptor_set": {
+                    "smqtk_descriptors.impls.descriptor_set.memory.MemoryDescriptorSet": {
+                      "cache_element": {
+                          "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
+                              "explicit_mimetype": null,
+                              "filepath": "workdir/descriptor_set.pickle",
+                              "readonly": false
+                          },
+                          "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"
+                      },
+                      "pickle_protocol": -1
+                  },
+                  "type": "smqtk_descriptors.impls.descriptor_set.memory.MemoryDescriptorSet"
+                },
+                "factory_string": "IDMap,Flat",
+                "gpu_id": 0,
+                "idx2uid_kvs": {
+                    "smqtk_dataprovider.impls.key_value_store.memory.MemoryKeyValueStore": {
+                      "cache_element": {
+                          "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
+                              "explicit_mimetype": null,
+                              "filepath": "workdir/idx2uid.mem_kvstore.pickle",
+                              "readonly": false
+                          },
+                          "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"
+                      }
+                  },
+                  "type": "smqtk_dataprovider.impls.key_value_store.memory.MemoryKeyValueStore"
+                },
+                "uid2idx_kvs": {
+                    "smqtk_dataprovider.impls.key_value_store.memory.MemoryKeyValueStore": {
+                      "cache_element": {
+                          "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
+                              "explicit_mimetype": null,
+                              "filepath": "workdir/uid2idx.mem_kvstore.pickle",
+                              "readonly": false
+                          },
+                          "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"
+                      }
+                  },
+                  "type": "smqtk_dataprovider.impls.key_value_store.memory.MemoryKeyValueStore"
+                },
+                "index_element": {
+                    "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
+                        "filepath": "models/faiss_index",
+                        "readonly": false
+                    },
+                    "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"
+                },
+                "index_param_element": {
+                    "smqtk_dataprovider.impls.data_element.file.DataFileElement": {
+                        "filepath": "models/faiss_index_params.json",
+                        "readonly": false
+                    },
+                    "type": "smqtk_dataprovider.impls.data_element.file.DataFileElement"
+                },
+                "ivf_nprobe": 64,
+                "metric_type": "l2",
+                "random_seed": 0,
+                "read_only": false,
+                "use_gpu": false
+            },
+            "type": "smqtk_indexing.impls.nn_index.faiss.FaissNearestNeighborsIndex"
+        },
+        "rank_relevancy_with_feedback": {
+            "smqtk_relevancy.impls.rank_relevancy.margin_sampling.RankRelevancyWithMarginSampledFeedback": {
+                "rank_relevancy": {
+                    "smqtk_relevancy.impls.rank_relevancy.wrap_classifier.RankRelevancyWithSupervisedClassifier": {
+                        "classifier_inst": {
+                            "smqtk_classifier.impls.classify_descriptor_supervised.sklearn_logistic_regression.SkLearnLogisticRegression": {
+                            },
+                            "type": "smqtk_classifier.impls.classify_descriptor_supervised.sklearn_logistic_regression.SkLearnLogisticRegression"
+                        }
+                    },
+                    "type": "smqtk_relevancy.impls.rank_relevancy.wrap_classifier.RankRelevancyWithSupervisedClassifier"
+                },
+                "n": 10,
+                "center": 0.5
+            },
+            "type": "smqtk_relevancy.impls.rank_relevancy.margin_sampling.RankRelevancyWithMarginSampledFeedback"
+        }
+      },
+      "session_control": {
+          "positive_seed_neighbors": 500,
+          "session_expiration": {
+              "check_interval_seconds": 30,
+              "enabled": true,
+              "session_timeout": 3600
+          }
+      }
+  }
+}
