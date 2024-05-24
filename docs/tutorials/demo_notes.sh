@@ -8,7 +8,7 @@ docker run -v \
   -it 1eed980552ae
 
 
-# code to run container directly from web-service. Runs demo but gets error.  Possibly needs older version of GPU
+# code to run container directly from web-service. This now runs with different nvidia driver
 docker run --gpus all -p 5000:5000 gitlab.kitware.com:4567/smqtk-public/smqtk-iqr-docker/iqr_playground:latest-cuda9.2-cudnn7-runtime-ubuntu18.04
 
 # command to run the demo with the mounted drive in docker container

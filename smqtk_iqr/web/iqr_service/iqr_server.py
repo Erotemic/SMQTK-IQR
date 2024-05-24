@@ -49,6 +49,9 @@ from smqtk_iqr.iqr import (
 
 LOG = logging.getLogger(__name__)
 
+# Change logging level after development work.
+LOG.setLevel(logging.DEBUG)
+
 
 def new_uuid() -> str:
     return str(uuid.uuid1(clock_seq=int(time.time() * 1000000)))\
@@ -114,6 +117,8 @@ class IqrService (SmqtkWebApp):
     @classmethod
     def get_default_config(cls) -> Dict[str, Any]:
         c = super(IqrService, cls).get_default_config()
+
+        print("\n IqrService default config", c)
 
         merge_dict(c, {
             "iqr_service": {
@@ -191,6 +196,8 @@ class IqrService (SmqtkWebApp):
         return c
 
     def __init__(self, json_config: Dict):
+
+        print("\n IqrService __init__ starts\n")
         super(IqrService, self).__init__(json_config)
         sc_config = json_config['iqr_service']['session_control']
 
@@ -283,10 +290,14 @@ class IqrService (SmqtkWebApp):
 
         self.add_routes()
 
+        print("\n IqrService __init__ ends\n")
+
     def add_routes(self) -> None:
         """
         Setup Flask URL rules.
         """
+        print("\n IqrService add_routes\n")
+
         self.add_url_rule('/is_ready',
                           view_func=self.is_ready,
                           methods=['GET'])
@@ -389,6 +400,9 @@ class IqrService (SmqtkWebApp):
 
         :return: Computed descriptor element.
         """
+
+        LOG.debug("\n Attempting to describe_base64_data")
+
         de = DataMemoryElement.from_base64(b64, content_type)
         return self.descriptor_generator.generate_one_element(
             de, descr_factory=self.descriptor_factory
@@ -401,6 +415,9 @@ class IqrService (SmqtkWebApp):
         Simple function that returns True, indicating that the server is
         active.
         """
+
+        print("\n IqrService is ready and running\n")
+
         return make_response_json("Yes, I'm alive."), 200
 
     # POST /add_descriptor_from_data
@@ -431,6 +448,9 @@ class IqrService (SmqtkWebApp):
                 (NOT the same as the nearest-neighbor index).
 
         """
+
+        print("\n IqrService add_descriptor_from_data starts...")
+
         data_b64 = flask.request.form.get('data_b64', None)
         content_type = flask.request.form.get('content_type', None)
         if not data_b64:
@@ -438,7 +458,9 @@ class IqrService (SmqtkWebApp):
         if not content_type:
             return make_response_json("No data mimetype provided."), 400
 
+        print("About to call describe_base64_data method.")
         try:
+
             descriptor = self.describe_base64_data(data_b64, content_type)
         except (TypeError, binascii.Error) as e:
             if str(e) == "Incorrect padding":

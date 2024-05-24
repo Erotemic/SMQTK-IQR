@@ -8,7 +8,6 @@ import glob
 import logging
 import os.path as osp
 import os
-import sklearn
 import json
 import os
 import numpy as np
@@ -20,9 +19,9 @@ from smqtk_iqr.utils import cli
 from smqtk_dataprovider import DataSet
 from smqtk_dataprovider.impls.data_element.file import DataFileElement
 from smqtk_descriptors.descriptor_element_factory import DescriptorElementFactory
+from smqtk_descriptors import DescriptorGenerator
 from smqtk_descriptors import DescriptorSet
 from smqtk_indexing import NearestNeighborsIndex
-from smqtk_indexing import LshFunctor
 from smqtk_core.configuration import (
     from_config_dict,
 )
@@ -44,7 +43,7 @@ class MyConfig(scfg.DataConfig):
             '''
             Path to the JSON descriptor metadata files. Contains pairs of
             image and descriptor file paths.
-            '''), nargs=1)
+            '''))
     tab = scfg.Value(None, required=True, short_alias=['t'], help=ub.paragraph(
             '''
             The configuration "tab" of the ``IqrSearchDispatcher``
@@ -55,7 +54,7 @@ class MyConfig(scfg.DataConfig):
 #---------------------------------------------------------------
 def remove_cache_files(ui_config, iqr_config) -> None:
     # Remove any existing cache files in data set config file path
-    data_cache = ui_config['iqr_tabs']['Geowatch Chipped']['data_set']\
+    data_cache = ui_config['iqr_tabs']['GEOWATCH_DEMO']['data_set']\
         ['smqtk_dataprovider.impls.data_set.memory.DataMemorySet']\
         ['cache_element']['smqtk_dataprovider.impls.data_element.file.DataFileElement']\
         ['filepath']
@@ -147,7 +146,7 @@ def main() -> None:
     ## setting up config values:
     ui_config_filepath, iqr_config_filepath = args.config
     llevel = logging.DEBUG if args.verbose else logging.INFO
-    manifest_path = (args.metadata)[0]
+    manifest_path = args.metadata
     tab = args.tab
 
     # Not using `cli.utility_main_helper`` due to deviating from single-
@@ -192,7 +191,11 @@ def main() -> None:
     # descriptor vectors below.
     descriptor_elem_factory_config = iqr_plugins_config['descriptor_factory']
 
-#    print("\n Descriptor Element Config:", descriptor_elem_factory_config)
+    # Configure DescriptorGenerator algorithm implementation, parameters and
+    # persistent model component locations (if implementation has any).
+    descriptor_generator_config = iqr_plugins_config['descriptor_generator']
+
+    print("\n Descriptor Generator Config:", descriptor_generator_config)
 
     # Configure the DescriptorSet instance into which the descriptor elements
     # are added.
@@ -222,6 +225,9 @@ def main() -> None:
         from_config_dict(data_set_config, DataSet.get_impls())
     descriptor_elem_factory = DescriptorElementFactory \
         .from_config(descriptor_elem_factory_config)
+    descriptor_generator: DescriptorGenerator = \
+        from_config_dict(descriptor_generator_config,
+                         DescriptorGenerator.get_impls())
 
 #    print("\n Descriptor_elem_factory: ", descriptor_elem_factory)
 #    factory_atts = vars(descriptor_elem_factory)
@@ -240,8 +246,9 @@ def main() -> None:
 #    print("\n What does nnindex_config look like?", nn_index)
 
     # Generate data set and descriptor set from the JSON manifest file
-    data_set, descriptor_set, descr_list =  \
-        generate_sets(manifest_path, data_set, descriptor_set, descriptor_elem_factory)
+    data_set, descriptor_set, descr_list = (
+        generate_sets(manifest_path, data_set, descriptor_set,
+                      descriptor_elem_factory))
 
 #    print("\n View data set", data_set)
 #    print("\nDescriptor list: ", descr_list)
@@ -273,9 +280,6 @@ def main() -> None:
 
 #    atts_nnindex = vars(nn_index)
 #    print("\n Nearest Neighbors Index attributes: ", atts_nnindex)
-
-
-
 
 if __name__ == "__main__":
     main()

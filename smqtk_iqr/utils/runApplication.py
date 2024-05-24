@@ -88,13 +88,19 @@ def main() -> None:
     parser = cli_parser()
     args = parser.parse_args()
 
+    print("\n Args: ", args)
+
     debug_smqtk = args.debug_smqtk or args.verbose
     debug_server = args.debug_server or args.verbose
     debug_app = args.debug_app or args.verbose
 
     debug_ns_list = args.debug_ns
+
+    # fancy if statement, using short-circuiting
     debug_smqtk and debug_ns_list.append('smqtk')
     debug_server and debug_ns_list.append('werkzeug')
+
+    print("\n Debug server: ", debug_server)
 
     # Create a single stream handler on the root, the level passed being
     # applied to the handler, and then set tuned levels on specific namespace
@@ -111,6 +117,9 @@ def main() -> None:
         logging.getLogger(ns).setLevel(logging.DEBUG)
 
     webapp_types = smqtk_iqr.web.SmqtkWebApp.get_impls()
+
+    print("\n Web App Types: ", webapp_types)
+
     web_applications: Dict[str, Type[smqtk_iqr.web.SmqtkWebApp]] = {t.__name__: t for t in webapp_types}
     if args.list:
         log.info("")
@@ -136,6 +145,8 @@ def main() -> None:
 
     app_class: Type[smqtk_iqr.web.SmqtkWebApp] = web_applications[application_name]
 
+    print("\n App Class: ", app_class)
+
     # If the application class's logger does not already report as having INFO/
     # DEBUG level logging (due to being a child of an above handled namespace)
     # then set the app namespace's logger level appropriately
@@ -151,6 +162,13 @@ def main() -> None:
     config = cli.utility_main_helper(app_class.get_default_config(), args,
                                      skip_logging_init=True)
 
+
+# debugging
+    import ubelt as ub
+    import rich
+    from rich.markup import escape
+    rich.print("\n Config: ", escape(ub.urepr(config, nl=True)))
+
     host = args.host
     port = args.port and int(args.port)
     use_reloader = args.reload
@@ -158,7 +176,14 @@ def main() -> None:
     use_basic_auth = args.use_basic_auth
     use_simple_cors = args.use_simple_cors
 
+    # confirm port and host values
+    print("\n Host: ", host)
+    print("\n Port: ", port)
+
     app: smqtk_iqr.web.SmqtkWebApp = app_class.from_config(config)
+
+    print("\n App: ", app)
+
     if use_basic_auth:
         app.config["BASIC_AUTH_FORCE"] = True
         BasicAuth(app)
@@ -168,6 +193,8 @@ def main() -> None:
     app.config['DEBUG'] = debug_server
 
     log.info("Starting application")
+
+
     app.run(host=host, port=port, debug=debug_server, use_reloader=use_reloader,
             threaded=use_threading)
 

@@ -13,7 +13,7 @@ from typing import Callable, Dict, Any, Optional
 import flask
 from flask_cors import cross_origin
 from werkzeug.exceptions import NotFound
-from werkzeug.wsgi import get_path_info#, pop_path_info
+from werkzeug.wsgi import peek_path_info, pop_path_info
 
 
 from smqtk_core.dict import merge_dict
@@ -25,6 +25,10 @@ from .modules.login import LoginMod
 from .modules.iqr import IqrSearch
 
 LOG = logging.getLogger(__name__)
+
+# Change logging level after development work.
+LOG.setLevel(logging.DEBUG)
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -220,15 +224,22 @@ class IqrSearchDispatcher (SmqtkWebApp):
         """
         with self.instances_lock:
             if prefix not in self.instances:
-                LOG.info("Initializing IQR instance '%s'", prefix)
-                LOG.debug("IQR tab config:\n%s", config)
-                # Strip any keys that are not expected by IqrSearch
-                # constructor
-                expected_keys = list(IqrSearch.get_default_config().keys())
-                for k in set(config).difference(expected_keys):
-                    LOG.debug("Removing unexpected key: %s", k)
-                    del config[k]
-                LOG.debug("Base app config: %s", self.config)
+                try:
+                    LOG.info("Initializing IQR instance HELLOOOO '%s'", prefix)
+                    LOG.debug("IQR tab config:\n%s", config)
+                    # Strip any keys that are not expected by IqrSearch
+                    # constructor
+                    expected_keys = list(IqrSearch.get_default_config().keys())
+                    for k in set(config).difference(expected_keys):
+                        LOG.debug("Removing unexpected key: %s", k)
+                        del config[k]
+                    LOG.debug("Base app config: %s", self.config)
+                except Exception as ex:
+                    LOG.error("Error during IQR instance initialization",
+                              str(ex))
+                    raise
+                else:
+                    LOG.debug("No exception occurred")
 
                 a = IqrSearch.from_config(config, self)
                 a.config.update(self.config)
@@ -254,13 +265,14 @@ class IqrSearchDispatcher (SmqtkWebApp):
         :return: Application instance or None if there is no instance for the
             given ``prefix``.
         """
+        LOG.debug(f"Getting application for prefix {prefix}")
+
         with self.instances_lock:
             return self.instances.get(prefix, None)
 
-    """ Disabled this function because pop_path_info has been removed
-    from werkzeug and there is no clear migration plan.
+
     def __call__(self, environ: Dict, start_response: Callable) -> Callable:
-        path_prefix = get_path_info(environ)
+        path_prefix = peek_path_info(environ)
         LOG.debug("Base application __call__ path prefix: '%s'", path_prefix)
 
         if path_prefix and path_prefix not in self.PREFIX_BLACKLIST:
@@ -276,7 +288,7 @@ class IqrSearchDispatcher (SmqtkWebApp):
             app = self.wsgi_app  # type: ignore
 
         return app(environ, start_response)  # type: ignore
-    """
+
 
     def run(
         self, host: Optional[str] = None, port: Optional[int] = None,

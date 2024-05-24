@@ -2,19 +2,11 @@
     "flask_app": {
         "BASIC_AUTH_PASSWORD": "demo",
         "BASIC_AUTH_USERNAME": "demo",
-        "SECRET_KEY": "MySuperUltraSecret"
-    },
-    "server": {
-        "host": "127.0.0.1",
-        "port": 5000
-    },
-    "mongo": {
-        "database": "smqtk",
-        "server": "127.0.0.1:27017"
+        "SECRET_KEY": "MySuperUltraSecret",
+        "debug": true
     },
     "iqr_tabs": {
-        "Geowatch Chipped": {
-            "working_directory": "workdir",
+        "GEOWATCH_DEMO": {
             "data_set": {
                 "smqtk_dataprovider.impls.data_set.memory.DataMemorySet": {
                     "cache_element": {
@@ -29,7 +21,16 @@
                 },
                 "type": "smqtk_dataprovider.impls.data_set.memory.DataMemorySet"
             },
-            "iqr_service_url": "http://localhost:5001"
+            "iqr_service_url": "localhost:5001",
+            "working_directory": "workdir"
         }
+    },
+    "mongo": {
+        "database": "smqtk",
+        "server": "127.0.0.1:27017"
+    },
+    "server": {
+        "host": "127.0.0.1",
+        "port": 5000
     }
 }

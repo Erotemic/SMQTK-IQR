@@ -1,4 +1,4 @@
-#Script to chip images and create associated descriptors.
+#Script to chip images and create associated 'dummy' descriptors.
 
 # Standard libraries
 import matplotlib.pyplot as plt
@@ -33,7 +33,7 @@ dset = kwcoco.CocoDataset.demo("vidshapes",
 
 rows=[]
 
-#TO DO:  determine how to read off the number of images in a kwcoco dataset
+#TODO:  determine how to read off the number of images in a kwcoco dataset
 for ii in range(dset.n_images):
 
     # Select image for slicing/chipping

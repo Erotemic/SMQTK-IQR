@@ -48,18 +48,24 @@ class MongoSessionInterface(SessionInterface):
         self._delete_on_empty = delete_on_empty
 
     def open_session(self, app: flask.Flask, request: Request) -> MongoSession:
-        sid = request.cookies.get(app.session_cookie_name)
+
+        try:
+            session_cookie_name = app.session_cookie_name
+        except AttributeError:
+            session_cookie_name = app.config['SESSION_COOKIE_NAME']
+
+        sid = request.cookies.get(session_cookie_name)
         if sid:
             stored_session = self.store.find_one({'_id': sid})
             if stored_session:
                 if stored_session.get('expiration') > datetime.utcnow():
                     LOG.debug("Returning existing MongoSession instance for "
-                              "SID={}".format(sid))
+                            "SID={}".format(sid))
                     return MongoSession(initial=stored_session['data'],
                                         sid=stored_session['_id'])
         sid = str(uuid4())
         LOG.debug("Returning NEW MongoSession instance for SID={}"
-                  .format(sid))
+                .format(sid))
         return MongoSession(sid=sid)
 
     def save_session(
@@ -82,6 +88,14 @@ class MongoSessionInterface(SessionInterface):
                            'expiration': expiration},
                           upsert=True)
         LOG.debug("Setting session cookie for SID={}".format(ssid))
-        response.set_cookie(app.session_cookie_name, ssid,
+
+        # Different versions of Flask may have different ways of getting the
+        # session information.
+        try:
+            session_cookie_name = app.session_cookie_name
+        except AttributeError:
+            session_cookie_name = app.config['SESSION_COOKIE_NAME']
+
+        response.set_cookie(session_cookie_name, ssid,
                             expires=expiration,
                             httponly=True, domain=domain)
