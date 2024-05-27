@@ -49,6 +49,8 @@ class MongoSessionInterface(SessionInterface):
 
     def open_session(self, app: flask.Flask, request: Request) -> MongoSession:
 
+        # Different versions of Flask may have different ways of getting the
+        # session_cookie_name
         try:
             session_cookie_name = app.session_cookie_name
         except AttributeError:
@@ -90,7 +92,7 @@ class MongoSessionInterface(SessionInterface):
         LOG.debug("Setting session cookie for SID={}".format(ssid))
 
         # Different versions of Flask may have different ways of getting the
-        # session information.
+        # session_cookie_name
         try:
             session_cookie_name = app.session_cookie_name
         except AttributeError:

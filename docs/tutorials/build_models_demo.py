@@ -23,42 +23,65 @@ from smqtk_core.configuration import (
     from_config_dict,
 )
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 class MyConfig(scfg.DataConfig):
     """
     Define the configuration class using the scriptconfig package for CLI args
     """
-    verbose = scfg.Value(False, isflag=True, short_alias=['v'],
-                         help='Output additional debug logging.')
-    config = scfg.Value(None, required=True, short_alias=['c'], help=ub.paragraph(
-            '''
+
+    verbose = scfg.Value(
+        False, isflag=True, short_alias=["v"], help="Output additional debug logging."
+    )
+    config = scfg.Value(
+        None,
+        required=True,
+        short_alias=["c"],
+        help=ub.paragraph(
+            """
             Path to the JSON configuration files. The first file
             provided should be the configuration file for the
             ``IqrSearchDispatcher`` web-application and the second
             should be the configuration file for the ``IqrService`` web-
             application.
-            '''), nargs=2)
-    metadata = scfg.Value(None, short_alias=['m'], help=ub.paragraph(
-            '''
+            """
+        ),
+        nargs=2,
+    )
+    metadata = scfg.Value(
+        None,
+        short_alias=["m"],
+        help=ub.paragraph(
+            """
             Path to the JSON descriptor metadata files. Contains pairs of
             image and descriptor file paths.
-            '''))
-    tab = scfg.Value(None, required=True, short_alias=['t'], help=ub.paragraph(
-            '''
+            """
+        ),
+    )
+    tab = scfg.Value(
+        None,
+        required=True,
+        short_alias=["t"],
+        help=ub.paragraph(
+            """
             The configuration "tab" of the ``IqrSearchDispatcher``
             configuration to use. This informs what dataset to add the
             input data files to.
-            '''))
+            """
+        ),
+    )
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 def remove_cache_files(ui_config, iqr_config) -> None:
     """
     Remove any existing cache files in defined in config file paths
     """
-    data_cache = ui_config['iqr_tabs']['GEOWATCH_DEMO']['data_set']\
-        ['smqtk_dataprovider.impls.data_set.memory.DataMemorySet']\
-        ['cache_element']['smqtk_dataprovider.impls.data_element.file.DataFileElement']\
-        ['filepath']
+    data_cache = ui_config["iqr_tabs"]["GEOWATCH_DEMO"]["data_set"][
+        "smqtk_dataprovider.impls.data_set.memory.DataMemorySet"
+    ]["cache_element"]["smqtk_dataprovider.impls.data_element.file.DataFileElement"][
+        "filepath"
+    ]
     # Deleting the file
     if os.path.exists(data_cache):
         os.remove(data_cache)
@@ -67,10 +90,11 @@ def remove_cache_files(ui_config, iqr_config) -> None:
         print(f"File {data_cache} does not exist - will be generated")
 
     # Remove any existing cache files in descriptor set config file path
-    descriptor_cache = iqr_config['iqr_service']['plugins']['descriptor_set']\
-    ['smqtk_descriptors.impls.descriptor_set.memory.MemoryDescriptorSet']\
-    ['cache_element']['smqtk_dataprovider.impls.data_element.file.DataFileElement']\
-    ['filepath']
+    descriptor_cache = iqr_config["iqr_service"]["plugins"]["descriptor_set"][
+        "smqtk_descriptors.impls.descriptor_set.memory.MemoryDescriptorSet"
+    ]["cache_element"]["smqtk_dataprovider.impls.data_element.file.DataFileElement"][
+        "filepath"
+    ]
 
     # Deleting the file if it exists
     if descriptor_cache and os.path.exists(descriptor_cache):
@@ -79,7 +103,8 @@ def remove_cache_files(ui_config, iqr_config) -> None:
     else:
         print(f"File '{descriptor_cache}' does not exist - will be generated")
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 def generate_sets(manifest_path, data_set, descriptor_set, descriptor_elem_factory):
     """
     Loads metadata from the JSON file and builds a data by adding each image.
@@ -91,16 +116,16 @@ def generate_sets(manifest_path, data_set, descriptor_set, descriptor_elem_facto
         data = json.load(json_file)
 
     # Access the list of image-descriptor pairs
-    image_descriptor_pairs = data['Image_Descriptor_Pairs']
+    image_descriptor_pairs = data["Image_Descriptor_Pairs"]
 
     # Iterate over each pair to build the data set and descriptor set
     for pair in image_descriptor_pairs:
 
         # Extract image path and descriptor path
-        image_path = pair['image_path']
+        image_path = pair["image_path"]
         image_path = osp.expanduser(image_path)
 
-        desc_path = pair['desc_path']
+        desc_path = pair["desc_path"]
         desc_path = osp.expanduser(desc_path)
 
         if osp.isfile(image_path) and osp.isfile(desc_path):
@@ -123,7 +148,8 @@ def generate_sets(manifest_path, data_set, descriptor_set, descriptor_elem_facto
 
     return data_set, descriptor_set
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 # A simple function to get the nth descriptor from the descriptor set
 # Displays the UUID and vector of the descriptor
 def get_nth_descriptor(descriptor_set, n):
@@ -133,12 +159,13 @@ def get_nth_descriptor(descriptor_set, n):
     print(f"\nDescriptor {n} info, uuid: {desc.uuid()}, vector: {desc.vector()}")
     return desc
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 def main() -> None:
     # Instantiate the configuration class and gather the arguments
     args = MyConfig.cli(special_options=False)
 
-    #--------------------------------------------------------------
+    # --------------------------------------------------------------
     # Set up config values:
     ui_config_filepath, iqr_config_filepath = args.config
     llevel = logging.DEBUG if args.verbose else logging.INFO
@@ -147,8 +174,8 @@ def main() -> None:
 
     # Not using `cli.utility_main_helper`` due to deviating from single-
     # config-with-default usage.
-    cli.initialize_logging(logging.getLogger('smqtk_iqr'), llevel)
-    cli.initialize_logging(logging.getLogger('__main__'), llevel)
+    cli.initialize_logging(logging.getLogger("smqtk_iqr"), llevel)
+    cli.initialize_logging(logging.getLogger("__main__"), llevel)
     log = logging.getLogger(__name__)
 
     log.info("Loading UI config: '{}'".format(ui_config_filepath))
@@ -163,38 +190,41 @@ def main() -> None:
         log.error("No configuration tab provided to drive model generation.")
         exit(1)
     if tab not in ui_config["iqr_tabs"]:
-        log.error("Invalid tab provided: '{}'. Available tags: {}"
-                  .format(tab, list(ui_config["iqr_tabs"])))
+        log.error(
+            "Invalid tab provided: '{}'. Available tags: {}".format(
+                tab, list(ui_config["iqr_tabs"])
+            )
+        )
         exit(1)
 
-    #----------------------------------------------------------------
+    # ----------------------------------------------------------------
     # Gather Configurations
     log.info("Extracting plugin configurations")
 
     ui_tab_config = ui_config["iqr_tabs"][tab]
-    iqr_plugins_config = iqr_config['iqr_service']['plugins']
+    iqr_plugins_config = iqr_config["iqr_service"]["plugins"]
 
     # Configure DataSet implementation and parameters
-    data_set_config = ui_tab_config['data_set']
+    data_set_config = ui_tab_config["data_set"]
 
     # Configure DescriptorElementFactory instance, which defines what
     # implementation of DescriptorElement to use for storing generated
     # descriptor vectors below.
-    descriptor_elem_factory_config = iqr_plugins_config['descriptor_factory']
+    descriptor_elem_factory_config = iqr_plugins_config["descriptor_factory"]
 
     # Configure the DescriptorSet instance into which the descriptor elements
     # are added.
-    descriptor_set_config = iqr_plugins_config['descriptor_set']
+    descriptor_set_config = iqr_plugins_config["descriptor_set"]
 
     # Configure NearestNeighborIndex algorithm implementation, parameters and
     # persistent model component locations (if implementation has any).
-    nn_index_config = iqr_plugins_config['neighbor_index']
+    nn_index_config = iqr_plugins_config["neighbor_index"]
 
-    #--------------------------------------------------------------
+    # --------------------------------------------------------------
     # Remove any existing cache files in data set config file path
     remove_cache_files(ui_config, iqr_config)
 
-    #---------------------------------------------------------------
+    # ---------------------------------------------------------------
     # Initialize data/algorithms
     #
     # Constructing appropriate data structures and algorithms, needed for the
@@ -204,20 +234,23 @@ def main() -> None:
     # Create instance of the class DataSet from the configuration
     data_set: DataSet = from_config_dict(data_set_config, DataSet.get_impls())
     descriptor_elem_factory = DescriptorElementFactory.from_config(
-        descriptor_elem_factory_config)
+        descriptor_elem_factory_config
+    )
 
     # Create instance of the class DescriptorSet from the configuration
     descriptor_set: DescriptorSet = from_config_dict(
-        descriptor_set_config, DescriptorSet.get_impls())
+        descriptor_set_config, DescriptorSet.get_impls()
+    )
 
     # Create instance of the class NearestNeighborsIndex from the configuration
-    nn_index: NearestNeighborsIndex = \
-       from_config_dict(nn_index_config, NearestNeighborsIndex.get_impls())
+    nn_index: NearestNeighborsIndex = from_config_dict(
+        nn_index_config, NearestNeighborsIndex.get_impls()
+    )
 
     # Generate data set and descriptor set from the JSON manifest file
-    data_set, descriptor_set = (
-        generate_sets(manifest_path, data_set, descriptor_set,
-                      descriptor_elem_factory))
+    data_set, descriptor_set = generate_sets(
+        manifest_path, data_set, descriptor_set, descriptor_elem_factory
+    )
 
     print(f"\nData set with {data_set.count()} elements created")
     print(f"Descriptor set with {descriptor_set.count()} elements created\n")
@@ -229,6 +262,7 @@ def main() -> None:
     desc_test = get_nth_descriptor(descriptor_set, 4)
     nn_test = nn_index.nn(desc_test, 3)
     print("\nNearest Neighbors: ", nn_test)
+
 
 if __name__ == "__main__":
     main()

@@ -61,14 +61,14 @@ show dbs
 # the config file paths need to be provided.
 
 # Following script provides commands to run in two tmux sessions
-COMMAND="runApplication -a IqrService \
+COMMAND="runApplication -v -a IqrService \
 -c /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/docs/tutorials/runApp.IqrRestService.json"
 SESSION_ID="SMQTK-IQR-SERVICE"
 tmux kill-session -t "$SESSION_ID" || true
 tmux new-session -d -s "$SESSION_ID" "bash"
 tmux send -t "$SESSION_ID" "$COMMAND" Enter
 
-COMMAND="runApplication -a IqrSearchDispatcher \
+COMMAND="runApplication -v -a IqrSearchDispatcher \
 -c /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/docs/tutorials/runApp.IqrSearchApp.json"
 SESSION_ID="SMQTK-IQR-SEARCH-DISPATCHER"
 tmux kill-session -t "$SESSION_ID" || true
