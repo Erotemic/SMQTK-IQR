@@ -1,138 +1,91 @@
+# --------------------------------------------------------------------------
+# IQR demo with PrePopulated Descriptor Set
+# ---------------------------------------------------------------------------
 
-# Code to run container from image to perform butterfly demo.
-docker run -v \
-  "/home/local/KHQ/paul.beasly/wrkspce/leeds_butterflies:/home/smqtk/data/mnt_butterflies/" \
-  --gpus all \
-  -p 5000:5000 \
-  --name smqtk \
-  -it 1eed980552ae
+"""
+May 27, 2024
+The following guide provides steps to run the IQR demo with a prepopulated
+descriptor set. The demo was written and run with Python version 3.11.2.
+Older versions of packages flask 2.0.1 and werkzeug 2.0.0 were used.
+The demo uses two werkzeug method 'pop_path_info' and 'peek_path_info' that
+were removed in werkzeug 2.3.0 release that were deprecated in 2.2.0. These
+methods are used by the IQR Search Dispatcher that generates the link for
+each IQR instance, smqtk/smqtk_iqr/web/search_app/__init__.py.
 
+The build_models_demo.py script is used to generate the descriptor set
+without calling the methods in one of the descriptor generator
+modules. Using the PrePopulatedDescriptorGenerator class, the descriptor set
+is generated from a manifest file that contains the paths to the image files
+and the corresponding descriptor files. The manifest file is created by the
+chip_images_demo.py script that generates image chips from kwcoco images and
+builds dummy descriptor files.
+"""
 
-# code to run container directly from web-service. This now runs with different nvidia driver
-docker run --gpus all -p 5000:5000 gitlab.kitware.com:4567/smqtk-public/smqtk-iqr-docker/iqr_playground:latest-cuda9.2-cudnn7-runtime-ubuntu18.04
+# ---------------------------------------------------------------------------
+# Steps to run the IQR demo with a prepopulated descriptor set
+# ---------------------------------------------------------------------------
 
-# command to run the demo with the mounted drive in docker container
-iqr_app_model_generation \
-    -c config.IqrSearchApp.json config.IqrRestService.json \
-    -t "LEEDS Butterflies" /leedsbutterfly_dataset_v1.1/leedsbutterfly/images/*.jpg
+# A. If not merged, git pull the PR branch 'dev/PrepopulatedDescriptorSet'
+# from the SMQTK-Descriptors repository.  Config files use the
+# 'PrePopulatedDescriptorGenerator' class.
 
+# B. (Optional) Remove previous directories and contents for a clean model build
+# /smqtk_iqr/demodata
+# /smqtk_iqr/docs/tutorials/models and /workdir
 
-# another idea to use existing config files, but point to images in the mounted drive.  Same command but perform in this containter directory
-smqtk/data/configs
+# 1. Generate image chips from kwcoco image generator
+# navigate to smqtk_iqr/docs/tutorials then run:
+python chip_images_demo.py
 
-iqr_app_model_generation \
-    -c runApp.IqrSearchDispatcher.json runApp.IqrRestService.json \
-    -t "LEEDS Butterflies" /leedsbutterfly_dataset_v1.1/leedsbutterfly/images/*.jpg
+# 2. Generate the SMQTK-IQR data set, descriptor set and faiss nnindex
+python build_models_demo.py -v \
+  -c runApp.IqrSearchApp.json runApp.IqrRestService.json \
+  -m ../../demodata/manifest.json \
+  -t "GEOWATCH_DEMO"
 
+# 3. Run mongodb service if not already started - config is set to use default
+# host and port ://127.0.0.1:27017
+sudo systemctl start mongodb
 
-# Invocation that should work
-kwcoco toydata --key=vidshapes8 --bundle_dpath="$HOME"/tmp/demo_data
+# 4. check the status of the service
+mongo --eval "db.getMongo()"
+# Should have message:
+# connecting to: mongodb://127.0.0.1:27017
+# 'smqtk' database will be created when the IQR service is run the first time.
+# Enter a mongo shell, to view available databases:
+mongo
+show dbs
 
-docker run \
-    --gpus all \
-    -p 5000:5000 \
-    -v "$HOME"/tmp/demo_data/_assets/images:/images \
-    gitlab.kitware.com:4567/smqtk-public/smqtk-iqr-docker/iqr_playground:latest-cuda9.2-cudnn7-runtime-ubuntu18.04 \
-    --build
+# 5. Run the IQR search dispatcher and IQR service.
+# This script does not need to be run in the tutorials directory; however,
+# the config file paths need to be provided.
 
-#Try another with different images
-docker run \
-    --gpus all \
-    -p 5000:5000 \
-    -v "$HOME"/local/KHQ/paul.beasly/wrkspce/leeds_butterflies/leedsbutterfly_dataset_v1.1/leedsbutterfly/images \
-    gitlab.kitware.com:4567/smqtk-public/smqtk-iqr-docker/iqr_playground:latest-cuda9.2-cudnn7-runtime-ubuntu18.04 \
-    --build
+# Following script provides commands to run in two tmux sessions
+COMMAND="runApplication -a IqrService \
+-c /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/docs/tutorials/runApp.IqrRestService.json"
+SESSION_ID="SMQTK-IQR-SERVICE"
+tmux kill-session -t "$SESSION_ID" || true
+tmux new-session -d -s "$SESSION_ID" "bash"
+tmux send -t "$SESSION_ID" "$COMMAND" Enter
 
+COMMAND="runApplication -a IqrSearchDispatcher \
+-c /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/docs/tutorials/runApp.IqrSearchApp.json"
+SESSION_ID="SMQTK-IQR-SEARCH-DISPATCHER"
+tmux kill-session -t "$SESSION_ID" || true
+tmux new-session -d -s "$SESSION_ID" "bash"
+tmux send -t "$SESSION_ID" "$COMMAND" Enter
 
-# Try using the downloaded image
+# 6. Open a web-browser and navigate to 'localhost:5000'
+python -c "import webbrowser; webbrowser.open('127.0.0.1:5000')"
 
-docker run \
-    --gpus all \
-    -p 5000:5000 \
-    -v "$HOME"/tmp/demo_data/_assets/images:/images \
-    1eed980552ae
+# 7. In the web-browser, select 'GEOWATCH_DEMO' IQR instance
 
+# 8. Both username and password are set to 'demo' by config files
 
-# practicing using the argparser
-python v1_iqr_demo.py \
- -c /home/local/KHQ/paul.beasly/wrkspce/leeds_butterflies/config.IqrSearchApp.json \
- /home/local/KHQ/paul.beasly/wrkspce/leeds_butterflies/config.IqrRestService.json \
- -t /home/local/KHQ/paul.beasly/wrkspce/leeds_butterflies/leedsbutterfly_dataset_v1.1/leedsbutterfly/images/*.png
+# Appendix:  If you want to perform step 5 in separate terminals, run:
+runApplication -a IqrService \
+-c /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/docs/tutorials/runApp.IqrRestService.json
 
- # practicing using the cli with different configurations. Use in script v1_iqr_demo.py
-python v1_iqr_demo.py \
- -c /home/local/KHQ/paul.beasly/wrkspce/leeds_butterflies/config.IqrSearchApp.json \
- /home/local/KHQ/paul.beasly/wrkspce/leeds_butterflies/config.IqrRestService.json \
- -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
- -t /home/local/KHQ/paul.beasly/wrkspce/leeds_butterflies/leedsbutterfly_dataset_v1.1/leedsbutterfly/images/*.png
-
-
-  # Use config in docker image. Use in script v1_iqr_demo.py
-python v1_iqr_demo.py \
- -c ../../data_docker_image/configs/runApp.IqrSearchDispatcher.json \
- ../../data_docker_image/configs/runApp.IqrService.json \
- -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
--t "Ten Butterflies" /home/local/KHQ/paul.beasly/wrkspce/leeds_butterflies/10_images/*.png
-
-# Use script_config rather than argparse. --Currently using this one
-python v2_iqr_demo.py \
- -c ../../data_docker_image/configs/runApp.IqrSearchDispatcher.json \
- ../../data_docker_image/configs/runApp.IqrService.json \
- -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
- -t "Ten Butterflies" /home/local/KHQ/paul.beasly/wrkspce/leeds_butterflies/leedsbutterfly_dataset_v1.1/leedsbutterfly/images/*.png
-
- # Use script_config rather than argparse. --Currently using this one with smaller set of images
-python v2_iqr_demo.py \
- -c ../../data_docker_image/configs/runApp.IqrSearchDispatcher.json \
- ../../data_docker_image/configs/runApp.IqrService.json \
- -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
- -t "Ten Butterflies" /home/local/KHQ/paul.beasly/data/ten_butterflies/*.png
-
-  # Use file system for descriptor elements.
-python v2_iqr_demo.py \
- -c ../../data_docker_image/configs/runApp.IqrSearchDispatcher.json \
- ../../data_docker_image/configs/run.IqrService_file.json \
- -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
- -t "Ten Butterflies" /home/local/KHQ/paul.beasly/data/ten_butterflies/*.png
-
-# command to run the demo with the mounted drive
-iqr_app_model_generation \
-    -c runApp.IqrSearchApp.json runApp.IqrRestService.json \
-    -t "LEEDS Butterflies" /leedsbutterfly_dataset_v1.1/leedsbutterfly/images/*.jpg
-
-
-  # Use config files with file saving instead of psql
-python v2_iqr_demo.py \
- -c runApp.IqrSearchApp.json runApp.IqrRestService_file.json \
- -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
- -t "Ten Butterflies" /home/local/KHQ/paul.beasly/data/ten_butterflies/*.png
-
-
-  # Try with v1
-python v1_iqr_demo.py \
- -c runApp.IqrSearchApp.json runApp.IqrRestService_file.json \
- -d /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/demodata/manifest.json \
- -t "Ten Butterflies" /home/local/KHQ/paul.beasly/data/ten_butterflies/*.png
-
-
-  # Using standard demo code
-iqr_app_model_generation \
- -c runApp.IqrSearchApp.json runApp.IqrRestService_file.json \
- -t "Ten Butterflies" /home/local/KHQ/paul.beasly/data/ten_butterflies/*.png
-
-# This is how the classifier users descriptors
-    # Load state into an empty IqrSession instance.
-    with open(iqr_state_fp, 'rb') as f:
-        state_bytes = f.read().strip()
-    descr_factory = DescriptorElementFactory(DescriptorMemoryElement, {})
-    rank_relevancy = mock.MagicMock(spec=RankRelevancy)
-    iqrs = IqrSession(rank_relevancy)
-    iqrs.set_state_bytes(state_bytes, descr_factory)
-
-# Code to generate the descriptor list used in iqr_app_model_generation
-    # Generate descriptors of data for building NN index.
-
-
-    descr_list = list(descriptor_generator.generate_elements(
-        data_set, descr_factory=descriptor_elem_factory
-    ))
+# In second terminal run the IQRsearch dispatcher
+runApplication -a IqrSearchDispatcher
+-c /home/local/KHQ/paul.beasly/code/SMQTK-IQR/smqtk_iqr/docs/tutorials/runApp.IqrSearchApp.json
