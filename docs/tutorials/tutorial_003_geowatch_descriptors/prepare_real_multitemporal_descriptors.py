@@ -224,11 +224,19 @@ def build_location_descriptor(grid_loc, coco_images, visual_channels,
                 originator='smqtk-tutorial',
                 status='unknown',
             ))
+            # If the video has T&E properties with region-id information,
+            # then we should include it.
+            video_props = video.get('properties', {})
+            if video_props:
+                region_id = video_props.get('region_id', None)
+                if region_id is not None:
+                    header['properties']['region_id'] = region_id
+            # TODO: get site-id if possible (requires knowing which annotation
+            # this corresonds to if any).
             crs84_geometry = geojson.loads(geojson.dumps(crs84_site_poly))
             header['geometry'] = crs84_geometry
             header.infer_mgrs()
             header['properties'].setdefault('cache', {})
-            # TODO: get site-id if possible
             header['properties']['cache'] = {
                 'video_name': video['name'],
             }
