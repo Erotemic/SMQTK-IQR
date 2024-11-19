@@ -220,7 +220,7 @@ def build_location_descriptor(grid_loc, coco_images, visual_channels,
             header = SiteHeader.empty()
             header['properties'].update(dict(
                 start_date=time_start.date().isoformat(),
-                stop_date=time_stop.date().isoformat(),
+                end_date=time_stop.date().isoformat(),
                 originator='smqtk-tutorial',
                 status='unknown',
             ))
